@@ -8,8 +8,7 @@ from jwcrypto.common import json_encode
 
 
 # Utils =============================================================
-# (Mostly for compressing/decompressing the payload)
-
+# (for compressing/decompressing the payload)
 
 def deflate(string_val):
     ''' Modified from https://stackoverflow.com/questions/1089662/python-inflate-and-deflate-implementations.
@@ -39,7 +38,6 @@ def get_FHIR_bundle(first_name="John",last_name="Doe",
         'birthDate': '2000-01-20'}
     }
 
-    # The GOOD one:
     imm1 = { 'fullUrl': 'resource:1', 
       'resource': {
             'resourceType': 'Immunization', 
@@ -126,10 +124,10 @@ def gen_key():
         obj = {"keys":[key_info]}
         json.dump(obj,f)
 
-
-def get_JWS(payload,key_file="private_jwk.json"):
-    ''' Given a payload (already compressed/encoded) and a json object
-    representing the private key, encode into a serialized jws token.'''
+def sign_JWS(payload,key_file="private_jwk.json"):
+    ''' Given a payload (already compressed/encoded) and a json file
+    representing the private key information, sign and encode into a
+    serialized jws token.'''
 
     with open(key_file,"r") as f:
         key_data=json.load(f)
@@ -176,9 +174,8 @@ def gen_smart_health_card(write_file=False,**kwargs):
     # Create the data
     FHIR = get_FHIR_bundle()
     vc = get_VC_bundle(FHIR)
-    #minified = json.dumps(vc,separators=(",",":"))
     payload = deflate(json.dumps(vc,separators=(",",":")))
-    jws_token = get_JWS(payload) # Note: is a str, not bytes
+    jws_token = sign_JWS(payload) # Note: is a str, not bytes
 
     # Write smart health file
     if write_file:
@@ -189,30 +186,6 @@ def gen_smart_health_card(write_file=False,**kwargs):
     # Generate QR code.
     img = qrcode.make(token_to_qr(jws_token))
     img.save("smart-health-card.png")
-
-# Testing ============================
-
-def check_health_card(fname, key_fname):
-    ''' Check that the final health card data is correct/readable/verifiable '''
-    with open(fname,"r") as f:
-        data = json.load(f)
-    token_data = data["verifiableCredential"][0]
-
-    with open(key_fname,"r") as f:
-        key_data = json.load(f)
-
-    # Get public key from example token
-    public_key = jwk.JWK(**key_data["keys"][0])
-
-    jws_token = jws.JWS()
-    jws_token.deserialize(token_data)
-    jws_token.verify(public_key)
-
-    text = json.loads(inflate(jws_token.payload))
-    print(text)
-    return token_data
-
-
 
 
 if __name__=="__main__":
