@@ -1,10 +1,9 @@
-# SMART Health Card Generator
+# SMART Health Card / "Vaccine Passport" Generator
 
-A python script for generating SMART Health Cards (i.e. those QR code vaccine
-passports that they have in BC and elsewhere.)
+A python script for generating SMART Health Cards.
 
-Obviously this will only be valid if you (or rather the URL associated with
-your public key) is trusted by whatever person/app is scanning the code.  And
-if that describes you, you probably shouldn't be using sketchy scripts from
-github.
+Obviously the result will only be "valid" if you are considered to be a trusted
+issuer (i.e. probably a government, hospital, NGO, etc.) by whatever
+person/app is scanning the code. And if that describes you, you probably
+shouldn't be using sketchy scripts from github?  But you do you, I guess.
 
