@@ -1,0 +1,6 @@
+*.json
+*.txt
+*.swp
+*.png
+
+!example.png
