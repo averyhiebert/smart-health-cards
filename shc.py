@@ -1,8 +1,11 @@
+''' Script for generating/issuing SMART health cards. '''
+
 import json
 import zlib
+import sys
 
 import qrcode
-
+import yaml
 from jwcrypto import jwk, jws
 from jwcrypto.common import json_encode
 
@@ -11,9 +14,7 @@ from jwcrypto.common import json_encode
 # (for compressing/decompressing the payload)
 
 def deflate(string_val):
-    ''' Modified from https://stackoverflow.com/questions/1089662/python-inflate-and-deflate-implementations.
-    
-    Take a str, compress and url-safe b64 encode it.'''
+    ''' Take a str, compress and url-safe b64 encode it.'''
     zlibbed_str = zlib.compress(string_val.encode())
     compressed_string = zlibbed_str[2:-4] # omit zlib headers, per spec
     return compressed_string
@@ -25,17 +26,19 @@ def inflate( compressed ):
 
 # Main token-creation functions =========================================
 
-def get_FHIR_bundle(first_name="John",last_name="Doe",
-        bday="2000-01-01"):
-    ''' Generate the vaccination record itself. TODO Implement all the
-    necessary passable parameters.'''
+def get_FHIR_bundle(conf):
+    ''' Generate the vaccination record itself.'''
+
+    given_names = conf["given_names"]
+    if type(given_names) == str:
+        given_names = given_names.split(" ")
 
     patient = {
       'fullUrl': 'resource:0', 
       'resource': {
         'resourceType': 'Patient', 
-        'name': [{'family': 'Doe', 'given': ['John']}], 
-        'birthDate': '2000-01-20'}
+        'name': [{'family': conf['family_name'], 'given': given_names}], 
+        'birthDate': str(conf['date_of_birth'])}
     }
 
     imm1 = { 'fullUrl': 'resource:1', 
@@ -44,10 +47,10 @@ def get_FHIR_bundle(first_name="John",last_name="Doe",
             'status': 'completed', 
             'vaccineCode': {'coding': [{'system': 'http://hl7.org/fhir/sid/cvx', 'code': '207'}]}, 
             'patient': {'reference': 'resource:0'},
-            'occurrenceDateTime': '2021-01-01', 
+            'occurrenceDateTime': str(conf['first_shot']['date']), 
             'performer': [{'actor': 
-                {'display': 'Dr. Nick Riviera'}}],
-            'lotNumber': '00000001'
+                {'display': conf['first_shot']['administered_by']}}],
+            'lotNumber': str(conf['first_shot']['lot_number'])
       }
     }
 
@@ -58,10 +61,10 @@ def get_FHIR_bundle(first_name="John",last_name="Doe",
         'status': 'completed',
         'vaccineCode': {'coding': [{'system': 'http://hl7.org/fhir/sid/cvx', 'code': '207'}]}, 
         'patient': {'reference': 'resource:0'}, 
-        'occurrenceDateTime': '2021-01-29', 
+        'occurrenceDateTime': str(conf['second_shot']['date']), 
         'performer': [{'actor': 
-            {'display': 'Some guy in an alley, idk'}}], 
-            'lotNumber': '42069'
+            {'display': conf['second_shot']['administered_by']}}], 
+            'lotNumber': conf['second_shot']['lot_number']
       }
     }
 
@@ -74,8 +77,8 @@ def get_FHIR_bundle(first_name="John",last_name="Doe",
     return FHIR
 
 def get_VC_bundle(FHIR,
-        issuer_url="https://noctes.mathematicae.ca/vaccination"):
-    ''' Given FHIR bundle, generate VC bundle. '''
+        issuer_url):
+    ''' Given FHIR bundle, generate VerifiableCredential bundle. '''
 
     vc = {
         "iss":issuer_url,
@@ -95,20 +98,19 @@ def get_VC_bundle(FHIR,
 
     return vc
 
+
 def token_to_qr(token):
+    ''' Implement the weird numerical encoding used by the shc standard. '''
     return "shc:/" + "".join([f"{(ord(c)-45):02d}" for c in token])
 
 
 # Crypto stuff ======================================================
 
-def gen_key():
+def gen_keys():
     ''' Generates public/private key pair.  Writes two files:
 
-      "jwks.json": contains only public info, in the format required for SMART 
-                   Health Card (i.e. including "kid", and with a field "keys"
-                   containing the jwk object)
-
-      "private_jwk.json": jwk file for private key.
+      jwks.json: public key, to be placed at issuer_url/.well-known/jwks.json
+      private_jwk.json: jwk file for private key, to be kept secret.
     '''
     key = jwk.JWK.generate(**{"kty":"EC","crv":"P-256","alg":"ES256",
         "use":"sig"})
@@ -168,14 +170,20 @@ def load_and_verify_jws_token(token,
 
 # Main ===================================================================
 
-def gen_smart_health_card(write_file=False,**kwargs):
-    ''' Eventually will be the function that actually takes a bunch of
-    configuration data and creates the QR code.'''
-    # Create the data
-    FHIR = get_FHIR_bundle()
-    vc = get_VC_bundle(FHIR)
+
+def gen_SHC(config_file="config.yaml",write_file=False):
+    ''' Generate a smart health card based on the given config file.'''
+    with open(config_file,"r") as f:
+        config = yaml.load(f,Loader=yaml.FullLoader)
+
+    issuer_url = config['issuer_url']
+    key_file = config['key_file']
+    output_file = config['output_file']
+
+    FHIR = get_FHIR_bundle(config)
+    vc = get_VC_bundle(FHIR,issuer_url=issuer_url)
     payload = deflate(json.dumps(vc,separators=(",",":")))
-    jws_token = sign_JWS(payload) # Note: is a str, not bytes
+    jws_token = sign_JWS(payload,key_file=key_file) # NB: is str, not bytes
 
     # Write smart health file
     if write_file:
@@ -185,10 +193,22 @@ def gen_smart_health_card(write_file=False,**kwargs):
         
     # Generate QR code.
     img = qrcode.make(token_to_qr(jws_token))
-    img.save("smart-health-card.png")
+    img.save(output_file)
 
 
 if __name__=="__main__":
-    gen_smart_health_card(issuer="https://noctes.mathematicae.ca/vaccination")
-    pass
 
+    if len(sys.argv) != 2:
+        print("Usage:")
+        print("  To generate public/private key pair:")
+        print("    python shc.py gen_keys\n")
+        print("  To generate qr code: ")
+        print("    python shc.py <config.yaml>")
+        sys.exit(1)
+
+    if sys.argv[1] == "gen_keys":
+        gen_keys()
+        sys.exit(1)
+    else:
+        gen_SHC(sys.argv[1])
+        sys.exit(1)

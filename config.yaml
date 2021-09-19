@@ -1,0 +1,14 @@
+issuer_url: https://www.example.com
+key_file: private_jwk.json
+output_file: output.png
+family_name: Doe
+given_names: John B
+date_of_birth: 1999-01-01
+first_shot:
+    date: 2021-01-01
+    administered_by: A Real Hospital that Exists
+    lot_number: 12345678
+second_shot:
+    date: 2021-01-20
+    administered_by: Some Guy in an Alley
+    lot_number: 00042069
