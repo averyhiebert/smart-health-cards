@@ -14,9 +14,6 @@ intended to be used in any serious software products.  Also, please don't use
 this for fraudulent purposes (not that it would be easy to do this).  The
 correct way to obtain a vaccine passport is to *get vaccinated*.
 
-Currently unfinished (it successfully generates codes/cards, but isn't
-fully paramaterized or convenient to use yet).
-
 # Dependencies:
 
 Requires Python 3, plus the following packages: `qrcode`, `jwcrypto`,
@@ -37,8 +34,10 @@ you issue, you must make `jwks.json` publicly available on the internet at
 `https://your.domain/some_arbitrary_path/.well-known/jwks.json`.  Note that
 https is required.
 
-Modify the example config file to include the correct name, vaccination dates, etc.  Set `issuer_url` based on where you placed `jwks.json` in the previous step (e.g. `https://your.domain/some_arbitrary_path` - note, do not include
-`/` at the end).  You can also change which file the private key is loaded from and where to save the resulting qr code.
+Modify the example config file to include the correct name, vaccination dates, etc.  Set `issuer_url` based on where you placed `/.well-known/jwks.json` in
+the previous step (e.g. `https://your.domain/some_arbitrary_path` - note, do
+not include `/` at the end).  You can also change which file the private key
+is loaded from and where to save the resulting qr code.
 
 Finally, run:
 
