@@ -14,12 +14,12 @@ intended to be used in any serious software products.  Also, please don't use
 this for fraudulent purposes (not that it would be easy to do this).  The
 correct way to obtain a vaccine passport is to *get vaccinated*.
 
-# Dependencies:
+## Dependencies:
 
 Requires Python 3, plus the following packages: `qrcode`, `jwcrypto`,
 and `pyyaml`.
 
-# Usage:
+## Usage:
 
 To generate keys:
 
