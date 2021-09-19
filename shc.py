@@ -170,7 +170,6 @@ def load_and_verify_jws_token(token,
 
 # Main ===================================================================
 
-
 def gen_SHC(config_file="config.yaml",write_file=False):
     ''' Generate a smart health card based on the given config file.'''
     with open(config_file,"r") as f:
